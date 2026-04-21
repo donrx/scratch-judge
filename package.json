@@ -6,11 +6,19 @@
   "scripts": {
     "test": "node test/test.js"
   },
-  "keywords": [],
+  "keywords": [
+    "scratch",
+    "judge"
+  ],
   "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "license": "MIT",
+  "type": "module",
   "dependencies": {
     "scratch-vm": "github:TurboWarp/scratch-vm"
-  }
+  },
+  "files": [
+    "dist/",
+    "index.js",
+    "README.md"
+  ]
 }

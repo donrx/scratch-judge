@@ -1,13 +1,12 @@
-const { judge } = require('../src/index.js');
-const json = require('./test.json');
-const fs = require('fs');
-const program = fs.readFileSync('./test/test.sb3');
+import { judge } from '../src/index.js';
+import json from './test.json' with { type: 'json' };
+import { readFileSync } from 'fs';
 
-checker = (input, output, expected) => {
-    return { score: 50, reason: 'Partially correct answer'};
-}
+const program = readFileSync('./test/test.sb3');
 
-(async () => {
-  const { avgScore, judgement } = await judge(program, json, checker);
-  console.log({ avgScore, judgement });
-})();
+const checker = (input, output, expected) => {
+  return { score: 50, reason: 'Partially correct answer' };
+};
+
+const { avgScore, judgement } = await judge(program, json, checker);
+console.log({ avgScore, judgement });

@@ -1,4 +1,4 @@
-const VirtualMachine = require('scratch-vm');
+import VirtualMachine from "scratch-vm";
 
 const areEqual = (arr1, arr2) => 
     arr1.length === arr2.length && 
@@ -114,4 +114,4 @@ async function judge(program, json, checker){
     return { avgScore, judgement };
 }   
 
-module.exports = {judge}
+export { judge };
