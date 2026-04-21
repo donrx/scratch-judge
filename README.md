@@ -1,24 +1,42 @@
 # scratch-judge
-A fast and secured judge engine for scratch projects
+
+A fast and secure judge engine for Scratch projects. Runs `.sb3` programs inside an isolated Docker container with no network access, capped memory, and a configurable timeout.
+
+## Requirements
+
+- [Node.js](https://nodejs.org/) ≥ 16
+- [Docker](https://www.docker.com/) (required for sandboxed execution)
 
 ## Installation
-This requires you to have Git and Node.js installed
 
-To install as a dependency for your own application:
+Install as a dependency:
+
 ```bash
-npm install scratch-judge
+npm install @donrx/scratch-judge
 ```
 
-To setup a development environment to edit yourself:
+Clone for development:
+
 ```bash
 git clone https://github.com/donrx/scratch-judge.git
 cd scratch-judge
 npm install
 ```
 
+## Docker setup
+
+Before calling `judge()`, build the runner image once:
+
+```bash
+docker build -t scratch-judge-runner .
+```
+
+The image is a slim Node 20 container that executes the Scratch VM in a read-only, network-isolated environment.
+
 ## Usage
+
 ```js
-import { judge } from 'scratch-judge';
+import { judge } from '@donrx/scratch-judge';
 import fs from 'fs';
 
 const program = fs.readFileSync('project.sb3');
@@ -27,8 +45,8 @@ const tests = {
   timeout: 5000,
   tests: [
     {
-      input:  { list: [1, 2, 3], live: ['hello'] },
-      output: { list: ['6'],     live: 'world'   }
+      input:  { list: ['1', '2', '3'], live: ['hello'] },
+      output: { list: ['6'],           live: 'world'   }
     }
   ]
 };
@@ -47,10 +65,10 @@ Runs a Scratch project against a set of test cases and returns a score.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `program` | `Buffer` \| `ArrayBuffer` | The `.sb3` project file contents |
-| `json` | `object` | Test configuration (see below) |
-| `checker` | `function` _(optional)_ | Custom checker function (see below) |
+| `json` | `JudgeConfig` | Test configuration (see below) |
+| `checker` | `Checker` _(optional)_ | Custom checker function (see below) |
 
-**Returns:** `Promise<{ avgScore: number, judgement: Array }>`
+**Returns:** `Promise<JudgeResult>`
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -59,7 +77,7 @@ Runs a Scratch project against a set of test cases and returns a score.
 
 ---
 
-### Test configuration (`json`)
+### Test configuration (`JudgeConfig`)
 
 ```js
 {
@@ -67,37 +85,38 @@ Runs a Scratch project against a set of test cases and returns a score.
   tests: [
     {
       input: {
-        list: [],    // Values pre-loaded into the INPUT list variable
-        live: []     // Answers fed to ASK/ANSWER prompts in order
+        list: [],    // string[] — values pre-loaded into the INPUT list variable
+        live: []     // string[] — answers fed to Ask/Answer prompts, in order
       },
       output: {
-        list: [],    // Expected OUTPUT list variable contents
-        live: ''     // Expected last SAY message
+        list: [],    // string[] — expected OUTPUT list variable contents
+        live: ''     // string  — expected last Say message
       }
     }
   ]
 }
 ```
 
-The Scratch project must expose two list variables named **`INPUT`** and **`OUTPUT`** on the stage. If neither list is needed for a test case (both inputs and outputs are empty), the test is skipped gracefully.
+The Scratch project must expose two stage list variables named **`INPUT`** and **`OUTPUT`**. If a test case uses neither (both input and expected output are empty lists with no live I/O), the test is skipped gracefully.
 
 ---
 
 ### Custom checker
 
-By default, scratch-judge checks for an exact match on both the `OUTPUT` list and the last `SAY` message. You can override this with your own checker:
+By default, scratch-judge requires an exact match on both the `OUTPUT` list and the last `Say` message. You can supply your own scoring logic:
 
 ```js
 const checker = (input, output, expected) => {
-  // input    – the test's input object  { list, live }
-  // output   – what the program produced { list, live }
-  // expected – the expected output       { list, live }
+  // input    – the test's input object  { list: string[], live: string[] }
+  // output   – what the program produced { list: string[], live: string }
+  // expected – the expected output        { list: string[], live: string }
 
-  const correct = output.live === expected.live &&
-                  output.list.join() === expected.list.join();
+  const correct =
+    output.live === expected.live &&
+    output.list.join() === expected.list.join();
 
   return {
-    score: correct ? 100 : 0,
+    score:  correct ? 100 : 0,
     reason: correct ? 'Correct answer' : 'Wrong answer'
   };
 };
@@ -105,9 +124,9 @@ const checker = (input, output, expected) => {
 const result = await judge(program, tests, checker);
 ```
 
-The checker must return an object with:
-- `score` — a number between 0 and 100
-- `reason` — a human-readable string explaining the result
+The checker must return `{ score: number, reason: string }` where `score` is 0–100.
+
+---
 
 ## Scratch project requirements
 
@@ -120,5 +139,46 @@ The checker must return an object with:
 - The last value passed to a **Say** block is captured as `output.live`.
 - If the project runs longer than `json.timeout` milliseconds, the test is scored 0 with reason `'Out of time'`.
 
+---
+
+## Sandbox
+
+Each judging call spins up a fresh Docker container with the following constraints:
+
+| Constraint | Value |
+|------------|-------|
+| Network | none |
+| Memory | 512 MB |
+| CPUs | 1 |
+| Filesystem | read-only + `/tmp` tmpfs |
+| Container lifetime | one run, auto-removed |
+
+The host only mounts the `.sb3` file into the container; the rest of your filesystem is untouched.
+
+---
+
+## TypeScript
+
+Type declarations are included:
+
+```ts
+import { judge, JudgeConfig, JudgeResult, Checker } from '@donrx/scratch-judge';
+```
+
+---
+
+## Development
+
+Run the test suite (requires Docker and the built image):
+
+```bash
+npm test
+```
+
+Tests are written with [Jest](https://jestjs.io/) and live in `test/judge.test.js`. Fixture `.sb3` and `.json` files are in `test/fixtures/`.
+
+---
+
 ## License
+
 MIT
