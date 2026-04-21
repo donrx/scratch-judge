@@ -1,0 +1,35 @@
+{
+    "timeout": 500,
+    "tests":[
+        {
+            "input": {
+                "live": ["Hi"],
+                "list": ["A"]
+            },
+            "output": {
+                "live": "ABC",
+                "list": []
+            }
+        },
+        {
+            "input": {
+                "live": ["Hi"],
+                "list": []
+            },
+            "output": {
+                "live": "ANC",
+                "list": ["B"]
+            }
+        },
+        {
+            "input": {
+                "live": ["Hi"],
+                "list": []
+            },
+            "output": {
+                "live": "",
+                "list": []
+            }
+        }
+    ]
+}

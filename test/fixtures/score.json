@@ -1,0 +1,35 @@
+{
+    "timeout": 2000,
+    "tests":[
+        {
+            "input": {
+                "live": [50],
+                "list": []
+            },
+            "output": {
+                "live": "",
+                "list": []
+            }
+        },
+                {
+            "input": {
+                "live": [30],
+                "list": []
+            },
+            "output": {
+                "live": "",
+                "list": []
+            }
+        },
+                {
+            "input": {
+                "live": [0],
+                "list": []
+            },
+            "output": {
+                "live": "",
+                "list": []
+            }
+        }
+    ]
+}

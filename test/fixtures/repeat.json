@@ -1,0 +1,25 @@
+{
+    "timeout": 2000,
+    "tests":[
+        {
+            "input": {
+                "live": ["Apple"],
+                "list": ["3", "4", "5"]
+            },
+            "output": {
+                "live": "Apple",
+                "list": ["3", "4", "5"]
+            }
+        },
+        {
+            "input": {
+                "live": ["Orange"],
+                "list": ["3", "6", "7"]
+            },
+            "output": {
+                "live": "Orange",
+                "list": ["3", "6", "7"]
+            }
+        }
+    ]
+}

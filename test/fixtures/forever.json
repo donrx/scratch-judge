@@ -1,0 +1,15 @@
+{
+    "timeout": 500,
+    "tests":[
+        {
+            "input": {
+                "live": [],
+                "list": []
+            },
+            "output": {
+                "live": "",
+                "list": []
+            }
+        }
+    ]
+}

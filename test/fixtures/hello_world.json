@@ -1,27 +1,23 @@
 {
-    "timeout":5000,
+    "timeout": 2000,
     "tests": [
         {
             "input":{
-                "live": [
-                    "1"
-                ],
+                "live": [],
                 "list": []
             },
             "output":{
-                "live": "Apple",
+                "live": "Hello, World!",
                 "list": []
             }
         },
         {
             "input":{
-                "live": [
-                    "2"
-                ],
+                "live": [],
                 "list": []
             },
             "output":{
-                "live": "Orange",
+                "live": "Goodbye!",
                 "list": []
             }
         }

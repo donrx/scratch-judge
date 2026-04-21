@@ -4,9 +4,8 @@
   "description": "A fast and secure judge engine for Scratch projects",
   "main": "src/index.js",
   "exports": "./src/index.js",
-  "type": "module",
   "scripts": {
-    "test": "node test/test.js"
+    "test": "jest"
   },
   "keywords": [
     "scratch",
@@ -27,5 +26,9 @@
   "files": [
     "src/index.js",
     "README.md"
-  ]
+  ],
+  "devDependencies": {
+    "@jest/globals": "^30.3.0",
+    "jest": "^30.3.0"
+  }
 }
