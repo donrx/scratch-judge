@@ -1,0 +1,29 @@
+{
+    "timeout":5000,
+    "tests": [
+        {
+            "input":{
+                "live": [
+                    "1"
+                ],
+                "list": []
+            },
+            "output":{
+                "live": "Apple",
+                "list": []
+            }
+        },
+        {
+            "input":{
+                "live": [
+                    "2"
+                ],
+                "list": []
+            },
+            "output":{
+                "live": "Orange",
+                "list": []
+            }
+        }
+    ]
+}
