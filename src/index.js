@@ -1,4 +1,4 @@
-import VirtualMachine from "scratch-vm";
+import VirtualMachine, { on } from "scratch-vm";
 
 const areEqual = (arr1, arr2) => 
     arr1.length === arr2.length && 
@@ -11,7 +11,7 @@ function waitForProgramEnd(vm, timeoutMs) {
             resolve('TIMEOUT');
         }, timeoutMs);
 
-        vm.on('PROJECT_RUN_STOP', () => {
+        vm.once('PROJECT_RUN_STOP', () => {
             vm.stopAll();
             clearTimeout(timer);
             resolve('OK');
@@ -79,7 +79,7 @@ async function judge(program, json, checker){
         vm.runtime.on('SAY', onSay);
 
         let questionIndex = 0;
-        vm.runtime.on('QUESTION', (question) => {
+        const onQuestion = (question) => {
             if(question == null) return;
             if(question !== '' && !answered){
                 vm.runtime.removeListener('SAY', onSay);
@@ -87,7 +87,8 @@ async function judge(program, json, checker){
             }
             vm.runtime.emit('ANSWER', input.live[questionIndex] ?? '');
             questionIndex++;
-        });
+        }
+        vm.runtime.on('QUESTION', onQuestion);
 
         const endPromise = waitForProgramEnd(vm, json.timeout);
         vm.greenFlag();
@@ -98,6 +99,9 @@ async function judge(program, json, checker){
         }
 
         judgement.push(checker(input, { list: outputList.value, live: answer}, expected));
+
+        vm.runtime.removeListener('SAY', onSay);
+        vm.runtime.removeListener('QUESTIOn', onQuestion);
     }
 
     let avgScore = 0;
