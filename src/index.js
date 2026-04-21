@@ -1,130 +1,69 @@
-const VirtualMachine = require('scratch-vm');
+const { execFile } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
-const areEqual = (arr1, arr2) => 
-    arr1.length === arr2.length && 
-    arr1.every((value, index) => value === arr2[index]);
+async function judge(program, json, checker){
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scratch-judge-'));
+    const programPath = path.join(tmpDir, 'program.sb3');
 
-function waitForProgramEnd(vm, timeoutMs) {
+    try {
+        fs.writeFileSync(programPath, program);
+
+        const input = JSON.stringify({
+            programPath: '/sandbox/program.sb3',
+            json,
+            checkerCode: checker ? checker.toString() : null
+        });
+
+        const result = await runInDocker(tmpDir, programPath, input, json.timeout);
+        return result;
+    } finally {
+        fs.rmSync(tmpDir, { recursive: true });
+    }
+}
+
+function runInDocker(tmpDir, programPath, input, timeout){
     return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-            vm.stopAll();
-            resolve('TIMEOUT');
-        }, timeoutMs);
+        const args = [
+            'run', '--rm',
+            '--network', 'none',
+            '--memory', '512m',
+            '--cpus', '1',
+            '--read-only',
+            '--tmpfs', '/tmp',
+            '-v', `${programPath}:/sandbox/program.sb3:ro`,
+            '-i',
+            'scratch-judge-runner'
+        ];
 
-        vm.once('PROJECT_RUN_STOP', () => {
-            vm.stopAll();
-            clearTimeout(timer);
-            resolve('OK');
-        })
+        const child = execFile('docker', args, {
+            timeout: timeout + 5000,
+            maxBuffer: 1024 * 1024
+        }, (err, stdout, stderr) => {
+            try{
+                if(stdout && stdout.trim() !== ''){
+                    const result = JSON.parse(stdout);
+                    if (result.error) {
+                        console.error('[judge] runner error:', result.error);
+                        return resolve({ score: 0, message: 'Internal error' });
+                    }
+                    return resolve(result);
+                }
+            } catch(parseError){
+
+            }
+
+            if (err){
+                return reject(new Error(`Docker error: ${err.message}\nStderr: ${stderr}`));
+            }
+
+            reject(new Error(`Bad output: ${stdout}`));
+        });
+
+        child.stdin.write(input);
+        child.stdin.end();
     });
 }
 
-async function judge(program, json, checker){
-    const judgement = [];
-
-    if(!checker){
-        checker = (input, output, expected) => {
-            if(output.live === expected.live && areEqual(output.list, expected.list)){
-                return { score: 100, reason: 'Correct answer' };
-            }else{
-                return { score: 0, reason: 'Wrong answer'};
-            }
-        }
-    }
-
-    const vm = new VirtualMachine();
-
-    await vm.loadProject(program);
-
-    vm.start();
-
-    for(const test of json.tests){
-        const input = test.input;
-        const expected = test.output;
-        const stage = vm.runtime.getTargetForStage();
-        
-        let inputList = Object.values(stage.variables).find(
-            v => v.name === 'INPUT' && v.type === "list"
-        );
-
-        let outputList = Object.values(stage.variables).find(
-            v => v.name === 'OUTPUT' && v.type === "list"
-        )
-
-        if(!inputList){
-            if(input.list.length == 0){
-                inputList = {};
-                inputList.value = [];
-            } else{
-                judgement.push({ score: 0, reason: 'Invalid format'});
-                continue;
-            }
-        }
-
-        inputList.value = input.list;
-
-        if(!outputList){
-            if(expected.list.length == 0){
-                outputList = {};
-                outputList.value = [];
-            } else{
-                judgement.push({ score: 0, reason: 'Invalid format'});
-                continue;
-            }
-        }
-
-        let answer = '';
-        let answered = false;
-        const onSay = (target, type, message) => {
-            if(type !== 'say') return;
-
-            answer = message;
-        }
-        vm.runtime.on('SAY', onSay);
-
-        let questionIndex = 0;
-        const onQuestion = (question) => {
-            if(question == null) return;
-            if(question !== '' && !answered){
-                vm.runtime.removeListener('SAY', onSay);
-                answered = true;
-            }
-            vm.runtime.emit('ANSWER', input.live[questionIndex] ?? '');
-            questionIndex++;
-        }
-        vm.runtime.on('QUESTION', onQuestion);
-
-        const endPromise = waitForProgramEnd(vm, json.timeout);
-        vm.greenFlag();
-        let result = 'OK';
-        if (vm.runtime.threads.length > 0) {
-            result = await endPromise;
-        }
-        if(result === 'TIMEOUT'){
-            judgement.push({score: 0, reason: 'Out of time'});
-            continue;
-        }
-
-        judgement.push(checker(input, { list: outputList.value, live: answer}, expected));
-
-        vm.runtime.removeListener('SAY', onSay);
-        vm.runtime.removeListener('QUESTION', onQuestion);
-    }
-    vm.quit();
-
-    let avgScore = 0;
-    let i = 0;
-    for(const test of judgement){
-        avgScore += test.score;
-        i++;
-    }
-    if(i === 0){
-        avgScore = 0;
-    } else{
-        avgScore /= i;
-    }
-
-    return { avgScore, judgement };
-}   
-
-module.exports = { judge };
+module.exports = {judge};
