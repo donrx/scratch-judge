@@ -61,6 +61,8 @@ async function judge(program, json, checker){
             }
         }
 
+        inputList.value = input.list;
+
         if(!outputList){
             if(expected.list.length == 0){
                 outputList = {};
