@@ -1,6 +1,6 @@
 {
   "name": "@donrx/scratch-judge",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A fast and secure judge engine for Scratch projects",
   "main": "src/index.js",
   "types": "src/index.d.ts",
