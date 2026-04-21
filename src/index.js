@@ -103,7 +103,7 @@ async function judge(program, json, checker){
         judgement.push(checker(input, { list: outputList.value, live: answer}, expected));
 
         vm.runtime.removeListener('SAY', onSay);
-        vm.runtime.removeListener('QUESTIOn', onQuestion);
+        vm.runtime.removeListener('QUESTION', onQuestion);
     }
     vm.quit();
 
