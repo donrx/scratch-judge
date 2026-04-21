@@ -16,7 +16,7 @@ async function judge(program, json, checker){
             checkerCode: checker ? checker.toString() : null
         });
 
-        const result = await runInDocker(tmpDir, programPath, input, json.timeout);
+        const result = await runInDocker(tmpDir, programPath, input, json.timeout * json.tests.length);
         return result;
     } finally {
         fs.rmSync(tmpDir, { recursive: true });
