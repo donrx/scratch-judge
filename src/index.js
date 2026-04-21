@@ -1,9 +1,3 @@
-const { JSDOM } = require('jsdom');
-const dom = new JSDOM('');
-global.window = dom.window;
-global.document = dom.window.document;
-global.navigator = dom.window.navigator;
-
 const VirtualMachine = require('scratch-vm');
 
 const areEqual = (arr1, arr2) => 
