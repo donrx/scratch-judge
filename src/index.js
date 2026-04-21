@@ -1,4 +1,4 @@
-import VirtualMachine, { on } from "scratch-vm";
+const VirtualMachine = require('scratch-vm');
 
 const areEqual = (arr1, arr2) => 
     arr1.length === arr2.length && 
@@ -43,7 +43,7 @@ async function judge(program, json, checker){
         const expected = test.output;
         const stage = vm.runtime.getTargetForStage();
         
-        const inputList = Object.values(stage.variables).find(
+        let inputList = Object.values(stage.variables).find(
             v => v.name === 'INPUT' && v.type === "list"
         );
 
@@ -52,21 +52,23 @@ async function judge(program, json, checker){
         )
 
         if(!inputList){
-            if(input.list.length == 0) continue;
-            judgement.push({ score: 0, reason: 'Invalid format'});
-            continue;
-        } else{
-            inputList.value = input.list;
+            if(input.list.length == 0){
+                inputList = {};
+                inputList.value = [];
+            } else{
+                judgement.push({ score: 0, reason: 'Invalid format'});
+                continue;
+            }
         }
 
         if(!outputList){
             if(expected.list.length == 0){
                 outputList = {};
                 outputList.value = [];
+            } else{
+                judgement.push({ score: 0, reason: 'Invalid format'});
                 continue;
             }
-            judgement.push({ score: 0, reason: 'Invalid format'});
-            continue;
         }
 
         let answer = '';
@@ -103,6 +105,7 @@ async function judge(program, json, checker){
         vm.runtime.removeListener('SAY', onSay);
         vm.runtime.removeListener('QUESTIOn', onQuestion);
     }
+    vm.quit();
 
     let avgScore = 0;
     let i = 0;
@@ -114,9 +117,9 @@ async function judge(program, json, checker){
         avgScore = 0;
     } else{
         avgScore /= i;
-    } 
+    }
 
     return { avgScore, judgement };
 }   
 
-export { judge };
+module.exports = { judge };
