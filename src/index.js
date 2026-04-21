@@ -13,7 +13,7 @@ function waitForProgramEnd(vm, timeoutMs) {
 
         vm.on('PROJECT_RUN_STOP', () => {
             vm.stopAll();
-            clearInterval(timer);
+            clearTimeout(timer);
             resolve('OK');
         })
     });
@@ -53,18 +53,19 @@ async function judge(program, json, checker){
 
         if(!inputList){
             if(input.list.length == 0) continue;
-            const judgement = { score: 0, reason: 'Invalid format'};
-            judgement.push(judgement);
+            judgement.push({ score: 0, reason: 'Invalid format'});
             continue;
+        } else{
+            inputList.value = input.list;
         }
 
         if(!outputList){
-            if(input.list.length == 0){
+            if(expected.list.length == 0){
+                outputList = {};
                 outputList.value = [];
                 continue;
             }
-            const judgement = { score: 0, reason: 'Invalid format'};
-            judgement.push(judgement);
+            judgement.push({ score: 0, reason: 'Invalid format'});
             continue;
         }
 
