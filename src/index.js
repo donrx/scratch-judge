@@ -96,7 +96,10 @@ async function judge(program, json, checker){
 
         const endPromise = waitForProgramEnd(vm, json.timeout);
         vm.greenFlag();
-        const result = await endPromise;
+        let result = 'OK';
+        if (vm.runtime.threads.length > 0) {
+            result = await endPromise;
+        }
         if(result === 'TIMEOUT'){
             judgement.push({score: 0, reason: 'Out of time'});
             continue;
