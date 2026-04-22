@@ -6,7 +6,8 @@
   "types": "src/index.d.ts",
   "exports": "./src/index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "build": "docker build -t scratch-judge-runner ."
   },
   "keywords": [
     "scratch",

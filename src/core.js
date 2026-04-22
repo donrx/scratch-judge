@@ -19,7 +19,7 @@ function waitForProgramEnd(vm, timeoutMs) {
     });
 }
 
-async function judge(program, json, checker){
+async function judge(program, options, checker){
     const judgement = [];
 
     if(!checker){
@@ -38,40 +38,9 @@ async function judge(program, json, checker){
 
     vm.start();
 
-    for(const test of json.tests){
+    for(const test of options.tests){
         const input = test.input;
         const expected = test.output;
-        const stage = vm.runtime.getTargetForStage();
-        
-        let inputList = Object.values(stage.variables).find(
-            v => v.name === 'INPUT' && v.type === "list"
-        );
-
-        let outputList = Object.values(stage.variables).find(
-            v => v.name === 'OUTPUT' && v.type === "list"
-        )
-
-        if(!inputList){
-            if(input.list.length == 0){
-                inputList = {};
-                inputList.value = [];
-            } else{
-                judgement.push({ score: 0, reason: 'Invalid format'});
-                continue;
-            }
-        }
-
-        inputList.value = input.list;
-
-        if(!outputList){
-            if(expected.list.length == 0){
-                outputList = {};
-                outputList.value = [];
-            } else{
-                judgement.push({ score: 0, reason: 'Invalid format'});
-                continue;
-            }
-        }
 
         let answer = '';
         let answered = false;
@@ -80,7 +49,6 @@ async function judge(program, json, checker){
 
             answer = message;
         }
-        vm.runtime.on('SAY', onSay);
 
         let questionIndex = 0;
         const onQuestion = (question) => {
@@ -92,23 +60,60 @@ async function judge(program, json, checker){
             vm.runtime.emit('ANSWER', input.live[questionIndex] ?? '');
             questionIndex++;
         }
-        vm.runtime.on('QUESTION', onQuestion);
 
-        const endPromise = waitForProgramEnd(vm, json.timeout);
-        vm.greenFlag();
-        let result = 'OK';
-        if (vm.runtime.threads.length > 0) {
-            result = await endPromise;
+        try{
+            const stage = vm.runtime.getTargetForStage();
+            
+            let inputList = Object.values(stage.variables).find(
+                v => v.name === 'INPUT' && v.type === "list"
+            );
+
+            let outputList = Object.values(stage.variables).find(
+                v => v.name === 'OUTPUT' && v.type === "list"
+            )
+
+            if(!inputList){
+                if(input.list.length == 0){
+                    inputList = {};
+                    inputList.value = [];
+                } else{
+                    judgement.push({ score: 0, reason: 'Invalid format'});
+                    continue;
+                }
+            }
+
+            inputList.value = input.list;
+
+            if(!outputList){
+                if(expected.list.length == 0){
+                    outputList = {};
+                    outputList.value = [];
+                } else{
+                    judgement.push({ score: 0, reason: 'Invalid format'});
+                    continue;
+                }
+            }
+            vm.runtime.on('SAY', onSay);
+            vm.runtime.on('QUESTION', onQuestion);
+
+            const endPromise = waitForProgramEnd(vm, options.timeout);
+            vm.greenFlag();
+            let result = 'OK';
+            if (vm.runtime.threads.length > 0) {
+                result = await endPromise;
+            }
+            if(result === 'TIMEOUT'){
+                judgement.push({score: 0, reason: 'Out of time'});
+                continue;
+            }
+
+            judgement.push(checker(input, { list: outputList.value, live: answer}, expected));
+        } catch(err){
+            throw new Error(err);
+        } finally{
+            vm.runtime.removeListener('SAY', onSay);
+            vm.runtime.removeListener('QUESTION', onQuestion);
         }
-        if(result === 'TIMEOUT'){
-            judgement.push({score: 0, reason: 'Out of time'});
-            continue;
-        }
-
-        judgement.push(checker(input, { list: outputList.value, live: answer}, expected));
-
-        vm.runtime.removeListener('SAY', onSay);
-        vm.runtime.removeListener('QUESTION', onQuestion);
     }
     vm.quit();
 

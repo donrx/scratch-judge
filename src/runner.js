@@ -17,16 +17,16 @@ async function main() {
 
     let checker = null;
     if (input.checkerCode){
-        const script = new vm.Script(`(${checkerCode})`);
+        const script = new vm.Script(`(${input.checkerCode})`);
         const ctx = vm.createContext({});
         checker = script.runInContext(ctx);
     }
 
-    const result = await judge(program, input.json, checker);
+    const result = await judge(program, input.options, checker);
     process.stdout.write(JSON.stringify(result));
 }
 
 main().catch(err => {
-    process.stdout.write(JSON.stringify({ error: err.message }));
+    process.stdout.write(JSON.stringify({ error: {message: err.message, stack: err.stack} }));
     process.exit(1);
 })

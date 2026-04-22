@@ -3,32 +3,32 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-async function judge(program, json, checker){
+async function judge(program, options, checker){
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scratch-judge-'));
     const programPath = path.join(tmpDir, 'program.sb3');
 
     try {
         fs.writeFileSync(programPath, program);
 
-        const input = JSON.stringify({
+        const input = {
             programPath: '/sandbox/program.sb3',
-            json,
+            options: options,
             checkerCode: checker ? checker.toString() : null
-        });
+        };
 
-        const result = await runInDocker(tmpDir, programPath, input, json.timeout * json.tests.length);
+        const result = await runInDocker(tmpDir, programPath, input);
         return result;
     } finally {
         fs.rmSync(tmpDir, { recursive: true });
     }
 }
 
-function runInDocker(tmpDir, programPath, input, timeout){
+function runInDocker(tmpDir, programPath, input){
     return new Promise((resolve, reject) => {
         const args = [
             'run', '--rm',
             '--network', 'none',
-            '--memory', '512m',
+            '--memory', input.options.memoryLimit ?? '256m',
             '--cpus', '1',
             '--read-only',
             '--tmpfs', '/tmp',
@@ -38,30 +38,31 @@ function runInDocker(tmpDir, programPath, input, timeout){
         ];
 
         const child = execFile('docker', args, {
-            timeout: timeout + 5000,
+            timeout: input.options.timeout * input.options.tests.length + 5000,
             maxBuffer: 1024 * 1024
         }, (err, stdout, stderr) => {
             try{
                 if(stdout && stdout.trim() !== ''){
                     const result = JSON.parse(stdout);
                     if (result.error) {
-                        console.error('[judge] runner error:', result.error);
-                        return resolve({ score: 0, message: 'Internal error' });
+                        return reject(new Error(
+                            result.error.stack.replaceAll('/app/', '')
+                        ));
                     }
                     return resolve(result);
                 }
-            } catch(parseError){
-
+            } catch(error){
+                console.error(error.message);
             }
 
             if (err){
-                return reject(new Error(`Docker error: ${err.message}\nStderr: ${stderr}`));
+                return reject(new Error(`Docker error: ${err.code}\nStderr: ${stderr}`));
             }
 
             reject(new Error(`Bad output: ${stdout}`));
         });
 
-        child.stdin.write(input);
+        child.stdin.write(JSON.stringify(input));
         child.stdin.end();
     });
 }

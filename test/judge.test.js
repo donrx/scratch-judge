@@ -74,7 +74,6 @@ describe('judge', () => {
       const json = loadJson('no_io.json');
 
       const result = await judge(program, json);
-      console.log(result);
 
       expect(result.avgScore).toBe(100 / 3);
       expect(result.judgement[0]).toEqual({score: 0, reason: 'Invalid format'});
