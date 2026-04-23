@@ -27,6 +27,6 @@ async function main() {
 }
 
 main().catch(err => {
-    process.stdout.write(JSON.stringify({ error: {message: err.message, stack: err.stack} }));
+    process.stdout.write(JSON.stringify({ error: err.stack ?? err }));
     process.exit(1);
 })
