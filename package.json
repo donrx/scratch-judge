@@ -5,9 +5,11 @@
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "exports": "./src/index.js",
+  "type": "commonjs",
   "scripts": {
     "test": "jest",
-    "build": "docker build -t scratch-judge-runner ."
+    "build": "docker build -t scratch-judge-runner .",
+    "bat": "npm run build && npm test"
   },
   "keywords": [
     "scratch",

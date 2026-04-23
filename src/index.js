@@ -41,18 +41,18 @@ function runInDocker(tmpDir, programPath, input){
             timeout: input.options.timeout * input.options.tests.length + 5000,
             maxBuffer: 1024 * 1024
         }, (err, stdout, stderr) => {
-            try{
+            try{        
                 if(stdout && stdout.trim() !== ''){
                     const result = JSON.parse(stdout);
-                    if (result.error) {
+                    if (result.error != null) {
                         return reject(new Error(
-                            result.error.stack.replaceAll('/app/', '')
+                            'Judge error: ' + result.error
                         ));
                     }
                     return resolve(result);
                 }
             } catch(error){
-                console.error(error.message);
+                
             }
 
             if (err){

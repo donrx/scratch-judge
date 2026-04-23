@@ -1,27 +1,35 @@
+global.navigator = { userAgent: 'node', onLine: true };
+global.window = global;
+global.self = global;
+global.document = {
+    createElement: () => ({ getContext: () => null }),
+    addEventListener: () => {},
+};
+global.location = { href: '' };
+
 const VirtualMachine = require('scratch-vm');
+const fs = require('fs')
 
 const areEqual = (arr1, arr2) => 
     arr1.length === arr2.length && 
     arr1.every((value, index) => value === arr2[index]);
 
-function waitForProgramEnd(vm, timeoutMs) {
+const run = (vm) => {
     return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-            vm.stopAll();
-            resolve('TIMEOUT');
-        }, timeoutMs);
+        vm.greenFlag();
 
-        vm.once('PROJECT_RUN_STOP', () => {
-            vm.stopAll();
-            clearTimeout(timer);
-            resolve('OK');
+        if(vm.runtime.threads.length === 0){
+            resolve();
+        }
+
+        vm.runtime.once('PROJECT_RUN_STOP', () => {
+            resolve();
         })
-    });
+    })
 }
 
-async function judge(program, options, checker){
-    const judgement = [];
-
+async function judge(program, test, checker){
+    checker = null;
     if(!checker){
         checker = (input, output, expected) => {
             if(output.live === expected.live && areEqual(output.list, expected.list)){
@@ -38,98 +46,76 @@ async function judge(program, options, checker){
 
     vm.start();
 
-    for(const test of options.tests){
-        const input = test.input;
-        const expected = test.output;
+    const input = test.input;
+    const expected = test.output;
 
-        let answer = '';
-        let answered = false;
-        const onSay = (target, type, message) => {
-            if(type !== 'say') return;
+    let answer = '';
+    let answered = false;
+    const onSay = (target, type, message) => {
+        if(type !== 'say') return;
 
-            answer = message;
-        }
+        answer = message;
+    }
 
-        let questionIndex = 0;
-        const onQuestion = (question) => {
-            if(question == null) return;
-            if(question !== '' && !answered){
-                vm.runtime.removeListener('SAY', onSay);
-                answered = true;
-            }
-            vm.runtime.emit('ANSWER', input.live[questionIndex] ?? '');
-            questionIndex++;
-        }
-
-        try{
-            const stage = vm.runtime.getTargetForStage();
-            
-            let inputList = Object.values(stage.variables).find(
-                v => v.name === 'INPUT' && v.type === "list"
-            );
-
-            let outputList = Object.values(stage.variables).find(
-                v => v.name === 'OUTPUT' && v.type === "list"
-            )
-
-            if(!inputList){
-                if(input.list.length == 0){
-                    inputList = {};
-                    inputList.value = [];
-                } else{
-                    judgement.push({ score: 0, reason: 'Invalid format'});
-                    continue;
-                }
-            }
-
-            inputList.value = input.list;
-
-            if(!outputList){
-                if(expected.list.length == 0){
-                    outputList = {};
-                    outputList.value = [];
-                } else{
-                    judgement.push({ score: 0, reason: 'Invalid format'});
-                    continue;
-                }
-            }
-            vm.runtime.on('SAY', onSay);
-            vm.runtime.on('QUESTION', onQuestion);
-
-            const endPromise = waitForProgramEnd(vm, options.timeout);
-            vm.greenFlag();
-            let result = 'OK';
-            if (vm.runtime.threads.length > 0) {
-                result = await endPromise;
-            }
-            if(result === 'TIMEOUT'){
-                judgement.push({score: 0, reason: 'Out of time'});
-                continue;
-            }
-
-            judgement.push(checker(input, { list: outputList.value, live: answer}, expected));
-        } catch(err){
-            throw new Error(err);
-        } finally{
+    let questionIndex = 0;
+    const onQuestion = (question) => {
+        if(question == null) return;
+        if(question !== '' && !answered){
             vm.runtime.removeListener('SAY', onSay);
-            vm.runtime.removeListener('QUESTION', onQuestion);
+            answered = true;
+        }
+        vm.runtime.emit('ANSWER', input.live[questionIndex] ?? '');
+        questionIndex++;
+    }
+
+    const stage = vm.runtime.getTargetForStage();
+    
+    let inputList = Object.values(stage.variables).find(
+        v => v.name === 'INPUT' && v.type === "list"
+    );
+
+    let outputList = Object.values(stage.variables).find(
+        v => v.name === 'OUTPUT' && v.type === "list"
+    )
+
+    if(!inputList){
+        if(input.list.length == 0){
+            inputList = {};
+            inputList.value = [];
+        } else{
+            return { score: 0, reason: 'Invalid format'};
         }
     }
-    vm.quit();
 
-    let avgScore = 0;
-    let i = 0;
-    for(const test of judgement){
-        avgScore += test.score;
-        i++;
-    }
-    if(i === 0){
-        avgScore = 0;
-    } else{
-        avgScore /= i;
-    }
+    inputList.value = input.list;
 
-    return { avgScore, judgement };
+    if(!outputList){
+        if(expected.list.length == 0){
+            outputList = {};
+            outputList.value = [];
+        } else{
+            return { score: 0, reason: 'Invalid format'};
+        }
+    }
+    vm.runtime.on('SAY', onSay);
+    vm.runtime.on('QUESTION', onQuestion);
+
+    await run(vm);
+    vm.stopAll();
+
+    return checker(input, { list: outputList.value, live: answer}, expected);
 }   
 
-module.exports = { judge };
+process.once('message', (message) => {
+    (async () => {
+        await judge(fs.readFileSync(message.programPath), message.test, message.checker)
+        .then(result => {
+            process.send({result: result});
+            process.exit(0);
+        })
+        .catch(err => {
+            process.send({error: err.stack ?? err});
+            process.exit(1);
+        });
+    })();
+})

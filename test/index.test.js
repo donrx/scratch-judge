@@ -10,6 +10,19 @@ const fixture = (filename) =>
 const loadProgram = (filename) => fs.readFileSync(fixture(filename));
 const loadJson = (filename) => JSON.parse(fs.readFileSync(fixture(filename), 'utf8'));
 
+describe('fast', () => {
+  it('returns score 100 when output matches expected, returns score 0 when output does not', async () => {
+      const program = loadProgram('hello_world.sb3');
+      const json = loadJson('hello_world.json');
+
+      const result = await judge(program, json);
+
+      expect(result.avgScore).toBe(50);
+      expect(result.judgement[0]).toEqual({ score: 100, reason: 'Correct answer'});
+      expect(result.judgement[1]).toEqual({ score: 0, reason: 'Wrong answer'});
+  });
+})
+
 describe('judge', () => {
   describe('scoring', () => {
     it('returns score 100 when output matches expected, returns score 0 when output does not', async () => {
