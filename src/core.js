@@ -7,16 +7,22 @@ const areEqual = (arr1, arr2) =>
 function waitForProgramEnd(vm, timeoutMs) {
     return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
-            vm.stopAll();
             resolve('TIMEOUT');
         }, timeoutMs);
 
         vm.once('PROJECT_RUN_STOP', () => {
-            vm.stopAll();
             clearTimeout(timer);
             resolve('OK');
         })
     });
+}
+
+function toSafe(obj) {
+    const safe = Object.create(null);
+    for (const [k, v] of Object.entries(obj)) {
+        safe[k] = Array.isArray(v) ? [...v] : v;
+    }
+    return safe;
 }
 
 async function judge(program, options, checker){
@@ -102,12 +108,14 @@ async function judge(program, options, checker){
             if (vm.runtime.threads.length > 0) {
                 result = await endPromise;
             }
+            vm.stopAll();
+            vm.quit();
             if(result === 'TIMEOUT'){
                 judgement.push({score: 0, reason: 'Out of time'});
                 continue;
             }
 
-            judgement.push(checker(input, { list: outputList.value, live: answer}, expected));
+            judgement.push(checker(toSafe(input), toSafe({ list: outputList.value, live: answer }), toSafe(expected)));
         } catch(err){
             throw new Error(err);
         } finally{

@@ -4,6 +4,14 @@ const path = require('path');
 const os = require('os');
 
 async function judge(program, options, checker){
+    if(options.tests.length > 20){
+        throw(new Error('Too many tests'));
+    }
+
+    if (!Number.isFinite(timeout) || timeout <= 0 || timeout > 60){
+        throw(new Error('Invalid timeout'));
+    }
+
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scratch-judge-'));
     const programPath = path.join(tmpDir, 'program.sb3');
 

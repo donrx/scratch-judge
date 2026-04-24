@@ -7,7 +7,7 @@ global.document = {
 };
 global.location = { href: '' };
 
-const { judge } = require('./core');
+const { judge } = require('./core')
 const fs = require('fs');
 const vm = require('vm');
 
