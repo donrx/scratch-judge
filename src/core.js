@@ -108,7 +108,7 @@ async function judge(program, test, checker){
 
 process.once('message', (message) => {
     (async () => {
-        await judge(fs.readFileSync(message.programPath), message.test, message.checker)
+        await judge(Buffer.from(message.program, 'base64'), message.test, message.checker)
         .then(result => {
             process.send({result: result});
             process.exit(0);
