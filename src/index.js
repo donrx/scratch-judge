@@ -2,7 +2,7 @@ const { fork } = require('child_process');
 
 const runProcess = (program, test, checker) => {
     return new Promise((resolve, reject) => {
-        const subProcess = fork('src/core.js', {
+        const subProcess = fork('src/runner.js', {
             timeout: 5000
         });
         subProcess.send({program: program.toString('base64'), test: test, checker: checker});

@@ -25,7 +25,10 @@
     "node": ">=16"
   },
   "dependencies": {
-    "scratch-vm": "github:TurboWarp/scratch-vm"
+    "isolated-vm": "^6.1.2",
+    "n": "^10.2.0",
+    "scratch-vm": "github:TurboWarp/scratch-vm",
+    "segfault-handler": "github:ddopson/node-segfault-handler"
   },
   "files": [
     "src/index.js",
