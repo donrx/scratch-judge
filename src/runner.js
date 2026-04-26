@@ -7,26 +7,104 @@ global.document = {
 };
 global.location = { href: '' };
 
-const { judge } = require('./core')
+const VirtualMachine = require('scratch-vm');
 const fs = require('fs');
-const vm = require('vm');
 
-async function main() {
-    const input = JSON.parse(fs.readFileSync('/dev/stdin', 'utf8'));
-    const program = fs.readFileSync(input.programPath);
+const areEqual = (arr1, arr2) => 
+    arr1.length === arr2.length && 
+    arr1.every((value, index) => value === arr2[index]);
 
-    let checker = null;
-    if (input.checkerCode){
-        const script = new vm.Script(`(${input.checkerCode})`);
-        const ctx = vm.createContext({});
-        checker = script.runInContext(ctx);
-    }
+const run = (vm) => {
+    return new Promise((resolve, reject) => {
+        vm.greenFlag();
 
-    const result = await judge(program, input.options, checker);
-    process.stdout.write(JSON.stringify(result));
+        if(vm.runtime.threads.length === 0){
+            resolve();
+        }
+
+        vm.runtime.once('PROJECT_RUN_STOP', () => {
+            resolve();
+        })
+    })
 }
 
-main().catch(err => {
-    process.stdout.write(JSON.stringify({ error: err.stack ?? err }));
-    process.exit(1);
+async function judge(program, test){
+    const vm = new VirtualMachine();
+
+    await vm.loadProject(program);
+
+    vm.start();
+
+    const input = test.input;
+    const expected = test.output;
+
+    let answer = '';
+    let answered = false;
+    const onSay = (target, type, message) => {
+        if(type !== 'say') return;
+
+        answer = message;
+    }
+
+    let questionIndex = 0;
+    const onQuestion = (question) => {
+        if(question == null) return;
+        if(question !== '' && !answered){
+            vm.runtime.removeListener('SAY', onSay);
+            answered = true;
+        }
+        vm.runtime.emit('ANSWER', input.live[questionIndex] ?? '');
+        questionIndex++;
+    }
+
+    const stage = vm.runtime.getTargetForStage();
+    
+    let inputList = Object.values(stage.variables).find(
+        v => v.name === 'INPUT' && v.type === "list"
+    );
+
+    let outputList = Object.values(stage.variables).find(
+        v => v.name === 'OUTPUT' && v.type === "list"
+    )
+
+    if(!inputList){
+        if(input.list.length == 0){
+            inputList = {};
+            inputList.value = [];
+        } else{
+            return {result: { score: 0, reason: 'Invalid format'}};
+        }
+    }
+
+    inputList.value = input.list;
+
+    if(!outputList){
+        if(expected.list.length == 0){
+            outputList = {};
+            outputList.value = [];
+        } else{
+            return {result: { score: 0, reason: 'Invalid format'}};
+        }
+    }
+    vm.runtime.on('SAY', onSay);
+    vm.runtime.on('QUESTION', onQuestion);
+
+    await run(vm);
+    vm.stopAll();
+
+    return {state: {input: input, output: { list: outputList.value, live: answer}, expected: expected}};
+}   
+
+process.once('message', (message) => {
+    (async () => {
+        await judge(Buffer.from(message.program, 'base64'), message.test)
+        .then(result => {
+            process.send({result: result});
+            process.exit(0);
+        })
+        .catch(err => {
+            process.send({error: err.stack ?? err});
+            process.exit(1);
+        });
+    })();
 })

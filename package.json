@@ -5,9 +5,11 @@
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "exports": "./src/index.js",
+  "type": "commonjs",
   "scripts": {
     "test": "jest",
-    "build": "docker build -t scratch-judge-runner ."
+    "build": "docker build -t scratch-judge-runner .",
+    "bat": "npm run build && npm test"
   },
   "keywords": [
     "scratch",
@@ -23,7 +25,10 @@
     "node": ">=16"
   },
   "dependencies": {
-    "scratch-vm": "github:TurboWarp/scratch-vm"
+    "isolated-vm": "^6.1.2",
+    "n": "^10.2.0",
+    "scratch-vm": "github:TurboWarp/scratch-vm",
+    "segfault-handler": "github:ddopson/node-segfault-handler"
   },
   "files": [
     "src/index.js",
