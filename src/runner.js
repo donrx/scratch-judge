@@ -28,18 +28,7 @@ const run = (vm) => {
     })
 }
 
-async function judge(program, test, checker){
-    checker = null;
-    if(!checker){
-        checker = (input, output, expected) => {
-            if(output.live === expected.live && areEqual(output.list, expected.list)){
-                return { score: 100, reason: 'Correct answer' };
-            }else{
-                return { score: 0, reason: 'Wrong answer'};
-            }
-        }
-    }
-
+async function judge(program, test){
     const vm = new VirtualMachine();
 
     await vm.loadProject(program);
@@ -108,7 +97,7 @@ async function judge(program, test, checker){
 
 process.once('message', (message) => {
     (async () => {
-        await judge(Buffer.from(message.program, 'base64'), message.test, message.checker)
+        await judge(Buffer.from(message.program, 'base64'), message.test)
         .then(result => {
             process.send({result: result});
             process.exit(0);
