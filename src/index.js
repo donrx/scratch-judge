@@ -1,19 +1,26 @@
-const { fork } = require('child_process');
+const { fork, execFile } = require('child_process');
 
-const runVM = (program, test) => {
+const runVM = (program, test, timeoutMs) => {
     return new Promise((resolve, reject) => {
-        const subProcess = fork('src/runner.js', {
-            timeout: 5000
-        });
+        const subProcess = fork('src/runner.js', [], { silent: true });
+        const timeout = setTimeout(() => {
+            subProcess.kill('SIGKILL');
+            subProcess.disconnect();
+
+            return resolve({result: {score: 0, reason: 'Out of time'}});
+        }, timeoutMs);
         subProcess.send({program: program.toString('base64'), test: test});
         subProcess.once('exit', (code, signal) => {
-            if(code !== 0){
-                return reject(new Error(`Child process exited with code ${code}`));
-            }
+            subProcess.removeAllListeners('message');
+            clearTimeout(timeout);
+            resolve({result: {score: 0, reason: 'Internal error'}});
         });
         subProcess.once('message', (message) => {
+            subProcess.removeAllListeners('exit');
+            clearTimeout(timeout);
+
             if(message.error != null){
-                return reject(new Error(message.error));
+                return resolve({result: {score: 0, reason: 'Internal error'}});
             }
 
             resolve(message.result);
@@ -24,39 +31,51 @@ const runVM = (program, test) => {
     })
 }
 
-const runChecker = (input, checker) => {
+const runChecker = (input, output, expected, checker) => {
     return new Promise((resolve, reject) => {
         if(!checker){
             checker = (input, output, expected) => {
-                if(output.live === expected.live && areEqual(output.list, expected.list)){
+                const listsEqual = output.list.length === expected.list.length &&
+                    output.list.every((v, i) => v === expected.list[i]);
+                if(output.live === expected.live && listsEqual){
                     return { score: 100, reason: 'Correct answer' };
-                }else{
-                    return { score: 0, reason: 'Wrong answer'};
+                } else {
+                    return { score: 0, reason: 'Wrong answer' };
                 }
             }
         }
 
-        const subProcess = fork('src/checker.js', {
-            timeout: 5000
-        });
-        
-        subProcess.send({input: input, checker: checker.toString()});
-        subProcess.once('exit', (code, signal) => {
-            if(code !== 0){
-                return reject(new Error(`Child process exited with code ${code}`));
-            }
-        });
-        subProcess.once('message', (message) => {
-            if(message.error != null){
-                return reject(new Error(message.error));
-            }
+        const args = [
+            '--rss=134217728',
+            '--cpu=5',
+            'deno', 'run', '--no-prompt', '-'
+        ];
 
-            resolve(message.result);
+        const subProcess = execFile('prlimit', args, {
+            timeout: 5000,
+        }, (error, stdout, stderr) => {
+            try{
+                if(stdout && stdout.trim()){
+                    const result = JSON.parse(stdout);
+                    if(
+                        !Number.isSafeInteger(result.score) || result.score > 100 || result.score < 0 ||
+                        !(typeof result.reason === 'string')
+                    ){
+                        return resolve({score: 0, reason: 'Internal error'});
+                    }
+                    return resolve(result);
+                }
+            } catch(err) {
 
-            subProcess.kill('SIGKILL');
-            subProcess.disconnect();
+            }
+            resolve({ score: 0, reason: 'Internal error' });
         });
-    })
+
+        subProcess.stdin.write(
+            `const checker = ${checker.toString()};\n console.log(JSON.stringify(checker(${JSON.stringify(input)}, ${JSON.stringify(output)}, ${JSON.stringify(expected)})))`
+        );
+        subProcess.stdin.end();
+    });
 }
 
 async function judge(program, options, checker){
@@ -64,15 +83,19 @@ async function judge(program, options, checker){
     let avgScore = 0;
     let i = 0;
     for(const test of options.tests){
-        await runVM(program, test, checker)
-        .then(result => {
-            judgement.push(result);
-            avgScore += result.score;
+        await runVM(program, test, options.timeout)
+        .then(async result => {
+            if(result.state){
+                result.result = await runChecker(result.state.input, result.state.output, result.state.expected, checker);
+            }
+
+            judgement.push(result.result);
+            avgScore += result.result.score;
             i++;
         });
     }
 
-    avgScore /= i > 0 ? i : 0;
+    if (i > 0) avgScore /= i;
 
     return {avgScore: avgScore, judgement: judgement}
 }

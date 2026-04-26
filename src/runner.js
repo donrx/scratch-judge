@@ -8,7 +8,7 @@ global.document = {
 global.location = { href: '' };
 
 const VirtualMachine = require('scratch-vm');
-const fs = require('fs')
+const fs = require('fs');
 
 const areEqual = (arr1, arr2) => 
     arr1.length === arr2.length && 
@@ -72,7 +72,7 @@ async function judge(program, test){
             inputList = {};
             inputList.value = [];
         } else{
-            return { score: 0, reason: 'Invalid format'};
+            return {result: { score: 0, reason: 'Invalid format'}};
         }
     }
 
@@ -83,7 +83,7 @@ async function judge(program, test){
             outputList = {};
             outputList.value = [];
         } else{
-            return { score: 0, reason: 'Invalid format'};
+            return {result: { score: 0, reason: 'Invalid format'}};
         }
     }
     vm.runtime.on('SAY', onSay);
@@ -92,7 +92,7 @@ async function judge(program, test){
     await run(vm);
     vm.stopAll();
 
-    return checker(input, { list: outputList.value, live: answer}, expected);
+    return {state: {input: input, output: { list: outputList.value, live: answer}, expected: expected}};
 }   
 
 process.once('message', (message) => {
