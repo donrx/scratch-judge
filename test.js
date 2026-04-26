@@ -1,13 +1,9 @@
-const ivm = require('isolated-vm');
-
-function initChecker(checker){
-    const isolate = new ivm.Isolate({
-        onCatastrophicError: (message) => {
-            throw(`Catastrophic error: ${message}`);
-        }
-    });
-
-    //const module = isolate.compileModuleSync(checker);
+function checker(input, output, expected){
+    if(output.live === expected.live && areEqual(output.list, expected.list)){
+        return { score: 100, reason: 'Correct answer' };
+    }else{
+        return { score: 0, reason: 'Wrong answer'};
+    }
 }
 
-initChecker('');
+module.exports = {checker}
