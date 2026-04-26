@@ -1,6 +1,12 @@
 # scratch-judge
 
-Runs `.sb3` projects against test cases and returns a score.
+A fast and secure way to judge Scratch `.sb3` files against test cases and return a score.
+
+## Requirements
+
+- [Node.js](https://nodejs.org/) ≥ 16
+- [Deno](https://deno.land/) — used to run custom checkers in an isolated process
+- `prlimit` — used to cap memory and CPU for checker execution (available by default on Linux)
 
 ## Install
 
